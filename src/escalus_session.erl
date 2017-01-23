@@ -8,7 +8,6 @@
 -export([start_stream/2,
          authenticate/2,
          starttls/2,
-         bind/2,
          compress/2,
          use_ssl/2,
          can_use_amp/2,
@@ -54,6 +53,7 @@
 -include_lib("exml/include/exml.hrl").
 -include_lib("exml/include/exml_stream.hrl").
 -include("escalus_xmlns.hrl").
+-include("escalus.hrl").
 -define(DEFAULT_RESOURCE, <<"escalus-default-resource">>).
 
 %%%===================================================================
@@ -94,21 +94,6 @@ authenticate(Conn, Props) ->
     {Props1, []} = escalus_session:start_stream(Conn, PropsAfterAuth),
     escalus_session:stream_features(Conn, Props1, []),
     Props1.
-
--spec bind(client(), user_spec()) -> user_spec().
-bind(Conn, Props) ->
-    Resource = proplists:get_value(resource, Props, ?DEFAULT_RESOURCE),
-    escalus_connection:send(Conn, escalus_stanza:bind(Resource)),
-    BindReply = escalus_connection:get_stanza(Conn, bind_reply),
-    escalus:assert(is_bind_result, BindReply),
-    case proplists:get_value(auth_method, Props) of
-        <<"SASL-ANON">> ->
-            JID = exml_query:path(BindReply, [{element, <<"bind">>}, {element, <<"jid">>}, cdata]),
-            TMPUsername = escalus_utils:get_username(JID),
-            lists:keyreplace(username, 1, Props, {username, TMPUsername});
-        _ ->
-            Props
-    end.
 
 -spec compress(client(), user_spec()) -> {client(), user_spec()}.
 compress(Conn, Props) ->
@@ -253,7 +238,20 @@ authenticate(Conn, Props, Features) ->
 
 -spec ?CONNECTION_STEP_SIG(bind).
 bind(Conn, Props, Features) ->
-    {Conn, bind(Conn, Props), Features}.
+    Resource = proplists:get_value(resource, Props, ?DEFAULT_RESOURCE),
+    escalus_connection:send(Conn, escalus_stanza:bind(Resource)),
+    BindReply = escalus_connection:get_stanza(Conn, bind_reply),
+    escalus:assert(is_bind_result, BindReply),
+    JID = exml_query:path(BindReply, [{element, <<"bind">>}, {element, <<"jid">>}, cdata]),
+    Conn2 = Conn#client{jid = JID},
+    Props2 = case proplists:get_value(auth_method, Props) of
+                 <<"SASL-ANON">> ->
+                     TMPUsername = escalus_utils:get_username(JID),
+                     lists:keyreplace(username, 1, Props, {username, TMPUsername});
+                 _ ->
+                     Props
+             end,
+    {Conn2, Props2, Features}.
 
 -spec ?CONNECTION_STEP_SIG(session).
 session(Conn, Props, Features) ->
