@@ -113,6 +113,7 @@
 -export([iq/2, iq/3]).
 
 -export([bind/1,
+         bind_2_0/0,
          session/0]).
 
 -export([setattr/3,
@@ -210,6 +211,11 @@ bind(Resource) ->
                attrs = [{<<"xmlns">>, <<"urn:ietf:params:xml:ns:xmpp-bind">>}],
                children = [#xmlel{name = <<"resource">>,
                                   children = [#xmlcdata{content = Resource}]}]}]).
+
+-spec bind_2_0() -> exml:element().
+bind_2_0() ->
+    #xmlel{name = <<"bind">>,
+           attrs = [{<<"xmlns">>, <<"urn:xmpp:bind2:0">>}]}.
 
 -spec session() -> exml:element().
 session() ->

@@ -27,6 +27,7 @@
          stream_resumption/3,
          authenticate/3,
          bind/3,
+         bind_2_0/3,
          session/3]).
 
 %% Public Types
@@ -251,6 +252,17 @@ bind(Conn, Props, Features) ->
                  _ ->
                      Props
              end,
+    {Conn2, Props2, Features}.
+
+-spec ?CONNECTION_STEP_SIG(bind_2_0).
+bind_2_0(Conn, Props, Features) ->
+    escalus_connection:send(Conn, escalus_stanza:bind_2_0()),
+    BindReply = escalus_connection:get_stanza(Conn, bind_reply),
+    #xmlel{name = <<"bound">>} = BindReply,
+    JID = exml_query:path(BindReply, [{element, <<"jid">>}, cdata]),
+    Resource = escalus_utils:regexp_get(JID, <<"^[^/]*[/](.*)">>),
+    Props2 = lists:keystore(resource, 1, Props, {resrouce, Resource}),
+    Conn2 = Conn#client{jid = JID},
     {Conn2, Props2, Features}.
 
 -spec ?CONNECTION_STEP_SIG(session).
